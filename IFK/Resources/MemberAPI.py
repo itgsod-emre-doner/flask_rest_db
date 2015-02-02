@@ -3,11 +3,13 @@ from pony.orm import db_session, select, commit, ObjectNotFound
 import flask.ext.restful as rest
 
 from IFK.Models.models import Member
+from IFK import api
+
+from flask import request, abort
 
 
-from flask import request
 
-
+@api.resource('/member/<int:id>')
 class MemberAPI(rest.Resource):
 
     def get(self, id):
@@ -16,7 +18,7 @@ class MemberAPI(rest.Resource):
             member = Member[id]
 
             if member is None:
-                return {'error': "member not found"}, 404
+                return abort(404)
 
             return {
                 "id": id,
@@ -25,58 +27,69 @@ class MemberAPI(rest.Resource):
             }, 200
 
     def put(self, id):
-        data = json.loads(request.data)
 
-        try:
-            name = data['name']
-            phone = data['phone']
-        except KeyError, e:
-            return {'error': "Bad request"}, 400
+        name = request.json.get('name', None)
+        phone = request.json.get("phone", None)
+
+
 
         with db_session:
             member = Member[id]
 
             if not member:
-                return {'error': "not found"}, 404
+                return abort(404)
             else:
-                member.name = name
-                member.phone = phone
+                if name:
+                    member.name = name
+                if phone:
+                    member.phone = phone
 
             return {"member": "updated"}, 202
 
-    def delete(self,id):
+    def delete(self, id):
 
-        try:
-            with db_session:
-                member = Member[id]
-                member.delete()
-        except ObjectNotFound:
-            return {'error': 'member not found'}
+        with db_session:
+            member = Member[id]
+            if member is None:
+                abort(404)
+            member.delete()
 
-        return {"delete": "member %s" % id}
+        return {"delete": "member %s" % id}, 200
 
-
+@api.resource('/members')
 class Members(rest.Resource):
     def get(self):
         with db_session:
             result = {}
             for member in select(member for member in Member):
                 result[member.id] = {'name': member.name, 'phone': member.phone}
+
             return result
+
+
 
     def put(self):
 
+
+
+
+        if request.json is None:
+            return abort(415)
+
+
         try:
             name = request.json['name']
-            phone = request.json.get("phone",None)
+            phone = request.json.get("phone", None)  #optional
         except KeyError, e:
-            return {'error': "Bad request"}, 400
+            return abort(400)
+
+
 
         with db_session:
-            member_id = Member(name=name, phone=phone)
+            member = Member(name=name, phone=phone)
             commit()
 
-        return str(member_id)
+            return {"id": member.id, "name": member.name, "phone": member.phone}, 201
 
 
 

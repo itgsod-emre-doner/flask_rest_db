@@ -1,6 +1,24 @@
 ## Flask & Rest & json & pony databas
 
 
+### API endpoints
+
+
+### /members
+
+#### GET
+
+get list of  all members
+
+#### PUT 
+
+
+
+
+
+
+
+
 ### För att testa använd curl
 
 
